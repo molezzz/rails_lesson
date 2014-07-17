@@ -545,6 +545,7 @@ end
 <% end %>
 
 ```
-
+更多关于表单Helper的介绍，可以参考官网的向导
+[http://guides.rubyonrails.org/form_helpers.html](http://guides.rubyonrails.org/form_helpers.html)
 
 好了，简单的美化就到这里了。下一章节我们将做一些基本的验证和测试。
