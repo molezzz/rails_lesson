@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  第一天
-date:   2014-07-14
+date:   2014-07-15
 excerpt: 增量式开发，需求分析，项目建立
 ---
 
