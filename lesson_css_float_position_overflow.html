@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <style type="text/css">
+  .red { background: red}
+  .blue {background: blue}
+  .box {
+    width: 150px;
+    height: 150px;
+    margin: 10px;
+    font-weight: 600;
+    color: #FFF;
+    text-align: center;
+    line-height: 150px;
+  }
+  .panel {
+    width: 450px;
+    border: 1px dashed #333;
+    margin: 10px;
+  }
+  .clearfix {
+    display: block;
+    clear:both;
+  }
+  .pos-absolute {
+    position: absolute;
+  }
+  .pos-relative {
+    position: relative;
+  }
+  .pos-fixed {
+    position: fixed;
+  }
+  </style>
+</head>
+<body>
+  <h1>浮动演示</h1>
+  <h2>正常无浮动</h2>
+  <div class="panel">
+    <div class="box red">div1</div>
+    <div class="box blue">div2</div>
+  </div>
+  <h2>左浮动 float:left</h2>
+  <div class="panel">
+    <div class="box red" style="float:left">div1</div>
+    <div class="box blue" style="float:left">div2</div>
+    <div class="clearfix"></div>
+  </div>
+  <h2 class="clearfix">右浮动 float:right</h2>
+  <div class="panel">
+    <div class="box red" style="float:right">div1</div>
+    <div class="box blue" style="float:right">div2</div>
+    <div class="clearfix"></div>
+  </div>
+  <h2 class="clearfix">左右浮动</h2>
+  <div class="panel">
+    <div class="box red" style="float:left">div1</div>
+    <div class="box blue" style="float:right">div2</div>
+    <div class="clearfix"></div>
+  </div>
+
+  <div class="pos-absolute" style="top:0;right:0;border:1px dotted #333;padding:10px;">
+    <h1>position演示</h1>
+    <div class="panel" style="height:150px;">
+      <div class="box red pos-absolute" style="top: 60px;left:10px;line-height:2em;">绝对定位,相对于 static 定位以外的第一个父元素进行定位。</div>
+      <div class="box blue pos-absolute" style="top: 80px;left:20px;z-index:-10;line-height:2em;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="box blue pos-relative" style="top: 60px;left:10px;line-height:2em;">相对定位,相对于其正常位置进行定位。</div>
+    </div>
+    <div class="panel" style="height:150px;">
+      <div class="box blue pos-fixed" style="top: 450px;right:10px;line-height:2em;">fixed定位，相对于浏览器窗口进行定位。</div>
+    </div>
+
+    <h1>Overflow演示</h1>
+    <div class="panel">
+      <div class="box red" style="overflow:hidden;line-height:1em;">
+        With a simple example the difference might seem trivial, but try to think how quickly the complexity of your inheritance chain would increase if you had not one but two, six or twelve different attributes (or sets of attributes) you wanted to be able to apply in different combinations.
+      </div>
+      <div class="box red" style="overflow:auto;line-height:1em;">
+        With a simple example the difference might seem trivial, but try to think how quickly the complexity of your inheritance chain would increase if you had not one but two, six or twelve different attributes (or sets of attributes) you wanted to be able to apply in different combinations.
+      </div>
+      <div class="box red" style="overflow:scroll;line-height:1em;">
+        With a simple example
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

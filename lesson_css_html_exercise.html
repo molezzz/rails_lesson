@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>布局联系</title>
+</head>
+<style type="text/css">
+  body {
+    padding: 0;
+    margin: 0;
+  }
+  #topbar {
+    height: 50px;
+    background: #666;
+    color: #FFF;
+    padding: 0 1em;
+    line-height: 50px;
+  }
+  #leftbar {
+    width: 200px;
+    min-height: 700px;
+    background: #00C;
+    color: #FFF;
+    float: left;
+  }
+  #right {
+    min-height: 700px;
+    margin-left: 200px;
+    background: #CCC;
+  }
+  #footbar {
+    width: 100%;
+    height: 50px;
+    position: fixed;
+    bottom: 0;
+    padding: 0 1em;
+    line-height: 50px;
+    color: #FFF;
+    background: red;
+  }
+</style>
+<body>
+<div id="topbar">
+顶栏：高 30px 背景颜色 #666
+</div>
+<div id="body">
+  <div id="leftbar">
+    左侧边栏： 宽 200px 高 700px 背景颜色 #00C
+  </div>
+  <div id="right">
+    右侧: 高 700px 宽度自适应
+  </div>
+</div>
+<div id="footbar">
+  底部: 高 50px 一直在底部 背景颜色 red
+</div>
+</body>
+</html>

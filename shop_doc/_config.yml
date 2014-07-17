@@ -1,0 +1,12 @@
+# Site settings
+title: 商城实战
+email: mole_zz@sina.com
+description: "商城实战教程"
+baseurl: ""
+url: "http://yourdomain.com"
+twitter_username: mole_zz
+github_username:  molezzz
+
+# Build settings
+markdown: redcarpet
+permalink: pretty

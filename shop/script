@@ -1,0 +1,4 @@
+执行步骤
+==================================
+rails new shop -d=mysql
+rake db:create
