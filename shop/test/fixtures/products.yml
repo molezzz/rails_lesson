@@ -11,3 +11,13 @@ two:
   description: MyText
   image_url: MyString
   price: 9.99
+
+#START:lenovo
+
+lenovo:
+  title: 联想 A820 白色
+  description:
+    联想A820是一款实惠的大屏幕智能机，搭载了4.5英寸屏幕，以及1.2GHz四核处理器，体验非常的不错。
+  price: 600
+  image_url:   lenovo.png
+#END:lenovo
