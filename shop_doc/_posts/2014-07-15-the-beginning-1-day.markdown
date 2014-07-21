@@ -249,6 +249,7 @@ rake db:seed
 打开“app/views/products/index.html.erb”,我们将里面的英文改成中文，然后再修改下结构：
 
 ``` html
+<div class="products">
 <h1>商品列表</h1>
 
 <table>
@@ -263,7 +264,7 @@ rake db:seed
  </tr>
  </thead>
 
- <tbody class="products">
+ <tbody>
  <% @products.each do |product| %>
  <tr class="<%= cycle('line-odd','line-even')%>">
  <td class="list-image">
@@ -289,6 +290,7 @@ rake db:seed
 <br>
 
 <%= link_to '新建商品', new_product_path %>
+</div>
 ```
 
 我们的样式表应该放在哪里呢？实际上Rails的脚手架命令已经为我们创建好一个空的样式表文件了。它的位置在“app/assets/stylesheets/products.css.scss”。名字是同控制器名称相对应的。现在，我们打开这个文件并进行简单的编辑：
@@ -518,7 +520,7 @@ body {
 
   > 选择框
 
-* select_date, select_datetime
+* select\_date, select\_datetime
 
   > Rails特有的日期时间选择框
 
