@@ -748,8 +748,483 @@ class Computer < ActiveRecord::Base
 end
 ```
 
+**自定义验证使用的方法**
+
+还可以自定义方法验证模型的状态，如果验证失败，向 erros 集合添加错误消息。然后还要使用类方法 validate 注册这些方法，传入自定义验证方法名的 Symbol 形式。
+
+类方法可以接受多个 Symbol，自定义的验证方法会按照注册的顺序执行。
+
+``` ruby
+class Invoice < ActiveRecord::Base
+  validate :expiration_date_cannot_be_in_the_past,
+    :discount_cannot_be_greater_than_total_value
+
+  def expiration_date_cannot_be_in_the_past
+    if expiration_date.present? && expiration_date < Date.today
+      errors.add(:expiration_date, "can't be in the past")
+    end
+  end
+
+  def discount_cannot_be_greater_than_total_value
+    if discount > total_value
+      errors.add(:discount, "can't be greater than total value")
+    end
+  end
+end
+```
+
+默认情况下，每次调用 valid? 方法时都会执行自定义的验证方法。使用 validate 方法注册自定义验证方法时可以设置 :on 选项，执行什么时候运行。:on 的可选值为 :create 和 :update。
+
+``` ruby
+class Invoice < ActiveRecord::Base
+  validate :active_customer, on: :create
+
+  def active_customer
+    errors.add(:customer_id, "is not active") unless customer.active?
+  end
+end
+```
+
+如果遇到更复杂或者需要多处使用的验证规则，我们还可以编写自己的验证类。关于这部分的知识请阅读后面的扩展部分。
+
+#####**验证错误后的错误信息（errors）**
+
+除了前面介绍的 valid? 和 invalid? 方法之外，Rails 还提供了很多方法用来处理 errors 集合，以及查询对象的合法性。
+
+**errors**
+
+ActiveModel::Errors 的实例包含所有的错误。其键是每个属性的名字，值是一个数组，包含错误消息字符串。
+
+```ruby
+class Person < ActiveRecord::Base
+  validates :name, presence: true, length: { minimum: 3 }
+end
+
+person = Person.new
+person.valid? # => false
+person.errors.messages
+ # => {:name=>["can't be blank", "is too short (minimum is 3 characters)"]}
+
+person = Person.new(name: "John Doe")
+person.valid? # => true
+person.errors.messages # => {}
+```
+
+**errors[]**
+
+errors[] 用来获取某个属性上的错误消息，返回结果是一个由该属性所有错误消息字符串组成的数组，每个字符串表示一个错误消息。如果字段上没有错误，则返回空数组。
+
+```ruby
+class Person < ActiveRecord::Base
+  validates :name, presence: true, length: { minimum: 3 }
+end
+
+person = Person.new(name: "John Doe")
+person.valid? # => true
+person.errors[:name] # => []
+
+person = Person.new(name: "JD")
+person.valid? # => false
+person.errors[:name] # => ["is too short (minimum is 3 characters)"]
+
+person = Person.new
+person.valid? # => false
+person.errors[:name]
+ # => ["can't be blank", "is too short (minimum is 3 characters)"]
+```
+
+
+
+####2. 关于测试
+
+关于写测试，很多人的第一印象是：
+
+* 写测试很无聊
+* 测试很难写
+* 写测试不如写代码好玩
+* 我们没时间写测试
+
+“项目时间紧迫，哪来的时间做自动化测试呢？”其实这种想法是短视的。在项目的实际开发过程中，我们体会到写测试有很多好处：
+
+1. 确认你的程序正确执行。一但写好了测试程序，很容易就可以检查程序有没有写对。
+2. 之后新加功能或重构时，可以方便的检测出新写的代码是否给已有的功能带来麻烦。这又叫做“回归测试”，你不需要手动再去测试其他部分，直接使用原来写好的测试代码就好了。
+3. 可以采用**“BDD”**或**“TDD”**方式开发，先写测试再编写程序代码。从使用者的视角去看程序，写程序的目的是为了满足使用者需求。
+4. 当别人不知道如何使用你写的代码时，可以看看你的测试。
+
+仅仅第一条好处，就是值得你学习如何写测试，并依靠自动测试提高你的开发效率。回想前面，我们是怎么写出自己认为正确的程序代码的呢？我们先按照需求编写出代码，然后在命令行执行或者打开浏览器看结果。每次修改，都要手动重复上面的动作。使用自动化测试，可以让机器完成你手动进行的操作，而且很高效。
+如果程序简单，我们进行一遍测试就可以通过那么自动化测试显示不出太大的优势。但是，如果程序非常复杂，你会浪费大量的时间在检测程序能否正确运行的工作上。更糟糕的是，你还有可能会丢落一些重要的测试。第二天，或者下一周、下一个月你修改代码的时候，你还要去确认以前的代码是否能跟你新写的代码一同工作。这简直就是地狱。如果你有一组自动化测试代码，那一切都变得轻松了。
+
+#####**为模型编写单元测试**
+
+在 Rails 中，单元测试用来测试模型。
+
+本文会使用 Rails 脚手架生成模型、迁移、控制器、视图和遵守 Rails 最佳实践的完整测试组件。我们会使用自动生成的代码，也会按需添加其他代码。
+执行 `rails generate scaffold` 命令生成资源时，也会在 `test/models` 文件夹中生成单元测试文件。
+
+脚手架生成的测试代码大概是如下的样子:
+
+```ruby
+require 'test_helper'
+
+class PostTest < ActiveSupport::TestCase
+  # test "the truth" do
+  #   assert true
+  # end
+end
+```
+
+下面逐行分析这段代码，熟悉 Rails 测试的代码和相关术语。
+
+``` ruby
+require 'test_helper'
+```
+
+现在你已经知道，`test_helper.rb` 文件是测试的默认设置，会载入所有测试，因此在所有测试中都可使用其中定义的方法。
+
+```ruby
+class PostTest < ActiveSupport::TestCase
+```
+`PostTest` 继承自 `ActiveSupport::TestCase`，定义了一个测试用例，因此可以使用 `ActiveSupport::TestCase`中的所有方法。后文会介绍其中一些方法。
+
+`MiniTest::Unit::TestCase`（`ActiveSupport::TestCase` 的父类）子类中每个以 `test` 开头（区分大小写）的方法都是一个测试，所以，`test_password`、`test_valid_password` 和 `testValidPassword `都是合法的测试名，运行测试用例时会自动运行这些测试。
+
+Rails 还提供了 `test` 方法，接受一个测试名作为参数，然后跟着一个代码块。`test` 方法会生成一个 `MiniTest::Unit` 测试，方法名以 `test_` 开头。例如：
+
+``` ruby
+test "the truth" do
+  assert true
+end
+```
+和下面的代码等效：
+
+``` ruby
+def test_the_truth
+  assert true
+end
+```
+
+不过前者的测试名可读性更高。当然，使用方法定义的方式也没什么问题。
+
+#####**运行测试**
+运行测试执行 rake test 命令即可，在这个命令中还要指定要运行的测试文件。
+
+``` bash
+$ rake test test/models/post_test.rb
+.
+
+Finished tests in 0.009262s, 107.9680 tests/s, 107.9680 assertions/s.
+
+1 tests, 1 assertions, 0 failures, 0 errors, 0 skips
+```
+
+上述代码中的点号（.）表示一个通过的测试。如果测试失败，会看到一个 F。如果测试抛出异常，会看到一个 E。输出的最后一行是测试总结。
+
+``` bash
+$ rake test test/models/post_test.rb test_should_not_save_post_without_title
+F
+
+Finished tests in 0.044632s, 22.4054 tests/s, 22.4054 assertions/s.
+
+  1) Failure:
+test_should_not_save_post_without_title(PostTest) [test/models/post_test.rb:6]:
+Failed assertion, no message given.
+
+1 tests, 1 assertions, 1 failures, 0 errors, 0 skips
+```
+
+上面是一个失败的测试。在输出中，F 表示失败测试。你会看到相应的调用栈和测试名。随后还会显示断言实际得到的值和期望得到的值。默认的断言消息提供了足够的信息，可以帮助你找到错误所在。要想让断言失败的消息更具可读性，可以使用断言可选的消息参数，例如：
+
+``` ruby
+test "should not save post without title" do
+  post = Post.new
+  assert_not post.save, "Saved the post without a title"
+end
+```
+
+运行这个测试后，会显示一个更友好的断言失败消息：
+
+``` bash
+1) Failure:
+test_should_not_save_post_without_title(PostTest) [test/models/post_test.rb:6]:
+Saved the post without a title
+```
+
+#####**单元测试要测试什么**
+理论上，应该测试一切可能出问题的功能。实际使用时，建议至少为每个数据验证编写一个测试，至少为模型中的每个方法编写一个测试。
+
+#####**可用的断言**
+
+断言是测试的核心，是真正用来检查功能是否符合预期的工具。
+
+断言有很多种，下面列出了可在 Rails 默认测试库 minitest 中使用的断言。方法中的 [msg] 是可选参数，指定测试失败时显示的友好消息。
+
+| 断言  | 作用  |
+| --- | --- |
+| assert( test, [msg] ) | 确保 test 是真值 |
+| assert_not( test, [msg] ) | 确保 test 是假值 |
+| assert_equal( expected, actual, [msg] ) | 确保 expected == actual 返回 true |
+| assert_not_equal( expected, actual, [msg] ) | 确保 expected != actual 返回 true |
+| assert_same( expected, actual, [msg] )  | 确保 expected.equal?(actual) 返回 true  |
+| assert_not_same( expected, actual, [msg] )  | 确保 expected.equal?(actual) 返回 false |
+| assert_nil( obj, [msg] )  | 确保 obj.nil? 返回 true |
+| assert_not_nil( obj, [msg] )  | 确保 obj.nil? 返回 false  |
+| assert_match( regexp, string, [msg] ) | 确保字符串匹配正则表达式  |
+| assert_no_match( regexp, string, [msg] )  | 确保字符串不匹配正则表达式 |
+| assert_in_delta( expecting, actual, [delta], [msg] )  | 确保数字 expected 和 actual 之差在 delta 指定的范围内 |
+| assert_not_in_delta( expecting, actual, [delta], [msg] )  | 确保数字 expected 和 actual 之差不在 delta 指定的范围内  |
+| assert_throws( symbol, [msg] ) { block }  | 确保指定的代码块会抛出一个 Symbol  |
+| assert_raises( exception1, exception2, ... ) { block }  | 确保指定的代码块会抛出其中一个异常 |
+| assert_nothing_raised( exception1, exception2, ... ) { block }  | 确保指定的代码块不会抛出其中一个异常  |
+| assert_instance_of( class, obj, [msg] ) | 确保 obj 是 class 的实例  |
+| assert_not_instance_of( class, obj, [msg] ) | 确保 obj 不是 class 的实例 |
+| assert_kind_of( class, obj, [msg] ) | 确保 obj 是 class 或其子类的实例  |
+| assert_not_kind_of( class, obj, [msg] ) | 确保 obj 不是 class 或其子类的实例 |
+| assert_respond_to( obj, symbol, [msg] ) | 确保 obj 可以响应 symbol  |
+| assert_not_respond_to( obj, symbol, [msg] ) | 确保 obj 不可以响应 symbol |
+| assert_operator( obj1, operator, [obj2], [msg] )  | 确保 obj1.operator(obj2) 返回真值 |
+| assert_not_operator( obj1, operator, [obj2], [msg] )  | 确保 obj1.operator(obj2) 返回假值 |
+| assert_send( array, [msg] ) | 确保在 array[0] 指定的方法上调用 array[1] 指定的方法，并且把 array[2] 及以后的元素作为参数传入，该方法会返回真值。这个方法很奇特吧？ |
+| flunk( [msg] )  | 确保测试会失败，用来标记测试还没编写完 |
+
+
+Rails 使用的测试框架完全模块化，因此可以自己编写新的断言。Rails 本身就是这么做的，提供了很多专门的断言，可以简化测试。
+
+#####**Rails 提供的断言**
+
+Rails 为 test/unit 框架添加了很多自定义的断言
+
+断言  | 作用
+--- | ---
+assert_difference(expressions, difference = 1, message = nil) {...} | 测试 expressions 的返回数值和代码块的返回数值相差是否为 difference
+assert_no_difference(expressions, message = nil, &amp;block)  | 测试 expressions 的返回数值和代码块的返回数值相差是否不为 difference
+assert_recognizes(expected_options, path, extras={}, message=nil) | 测试 path 指定的路由是否正确处理，以及 expected_options 指定的参数是够由 path 处理。也就是说 Rails 是否能识别 expected_options 指定的路由
+assert_generates(expected_path, options, defaults={}, extras = {}, message=nil) | 测试指定的 options 能否生成 expected_path指定的路径。这个断言是 assert_recognizes的逆测试。extras 指定额外的请求参数。message 指定断言失败时显示的错误消息。
+assert_response(type, message = nil)  | 测试响应是否返回指定的状态码。可用 :success 表示 200-299，:redirect 表示 300-399，:missing 表示 404，:error 表示 500-599。状态码可用具体的数字表示，也可用相应的符号表示。详细信息参见完整的状态码列表，以及状态码数字和符号的对应关系。
+assert_redirected_to(options = {}, message=nil) | 测试 options 是否匹配所执行动作的转向设定。这个断言可以匹配局部转向，所以 assert_redirected_to(controller: "weblog") 可以匹配转向到 redirect_to(controller: "weblog", action: "show") 等。还可以传入具名路由，例如 assert_redirected_to root_path，以及 Active Record 对象，例如 assert_redirected_to @article。
+assert_template(expected = nil, message=nil)  | 测试请求是否由指定的模板文件渲染
+
+#####**为控制器编写功能测试**
+
+在 Rails 中，测试控制器各动作需要编写功能测试。控制器负责处理程序接收的请求，然后使用视图渲染响应。
+
+**功能测试要测试什么**
+
+应该测试以下内容：
+
+* 请求是否成功；
+* 是否转向了正确的页面；
+* 用户是否通过了身份认证；
+* 是否把正确的对象传给了渲染响应的模板；
+* 是否在视图中显示了相应的消息；
+
+我们来看一下功能测试
+
+``` ruby
+class PostsControllerTest < ActionController::TestCase
+  test "should get index" do
+    get :index
+    assert_response :success
+    assert_not_nil assigns(:posts)
+  end
+end
+```
+
+在 `test_should_get_index` 测试中，Rails 模拟了一个发给 `index `动作的请求，确保请求成功，而且赋值了一个合法的 posts 实例变量。
+
+get 方法会发起请求，并把结果传入响应中。可接受 4 个参数：
+
+* 所请求控制器的动作，可使用字符串或 Symbol；
+* 可选的 Hash，指定传入动作的请求参数（例如，请求字符串参数或表单提交的参数）；
+* 可选的 Hash，指定随请求一起传入的会话变量；
+* 可选的 Hash，指定 Flash 消息的值；
+
+举个例子，请求 :show 动作，请求参数为 'id' => "12"，会话参数为 'user_id' => 5：
+
+``` ruby
+get(:show, {'id' => "12"}, {'user_id' => 5})
+```
+再举个例子：请求 :view 动作，请求参数为 'id' => '12'，这次没有会话参数，但指定了 Flash 消息：
+
+``` ruby
+get(:view, {'id' => '12'}, nil, {'message' => 'booya!'})
+```
+
+**功能测试中可用的请求类型**
+
+如果熟悉 HTTP 协议就会知道，get 是请求的一种类型。在 Rails 功能测试中可以使用 6 种请求：
+
+* get
+* post
+* patch
+* put
+* head
+* delete
+
+这几种请求都可作为方法调用，不过前两种最常用。
+
+**可用的四个 Hash**
+
+使用上述 6 种请求之一发起请求并经由控制器处理后，会产生 4 个 Hash 供使用：
+
+* assigns：动作中创建在视图中使用的实例变量；
+* cookies：设置的 cookie；
+* flash：Flash 消息中的对象；
+* session：会话中的对象；
+
+和普通的 Hash 对象一样，可以使用字符串形式的键获取相应的值。除了 assigns 之外，另外三个 Hash 还可使用 Symbol 形式的键。例如：
+
+``` ruby
+flash["gordon"]               flash[:gordon]
+session["shmession"]          session[:shmession]
+cookies["are_good_for_u"]     cookies[:are_good_for_u]
+
+# 但是下面的做法是错误的
+assigns["something"]          assigns(:something)
+```
+在功能测试中还可以使用下面三个实例变量：
+
+* @controller：处理请求的控制器；
+* @request：请求对象；
+* @response：响应对象；
+
+**测试模板和布局**
+
+如果想测试响应是否使用正确的模板和布局渲染，可以使用 assert_template 方法：
+
+``` ruby
+test "index should render correct template and layout" do
+  get :index
+  assert_template :index
+  assert_template layout: "layouts/application"
+end
+```
+
+注意，不能在 assert\_template 方法中同时测试模板和布局。测试布局时，可以使用正则表达式代替字符串，不过字符串的意思更明了。即使布局保存在标准位置，也要包含文件夹的名字，所以 `assert_template layout: "application"` 不是正确的写法。
+
+如果视图中用到了局部视图，测试布局时必须指定局部视图，否则测试会失败。所以，如果用到了 _form 局部视图，下面的断言写法才是正确的：
+
+``` ruby
+test "new should render correct layout" do
+  get :new
+  assert_template layout: "layouts/application", partial: "_form"
+end
+```
+如果没有指定 :partial，assert_template 会报错。
+
+**测试视图**
+
+由于日常工作中做视图测试有更多更好的解决方案，因此视图测试请参阅扩展阅读了解一下。
+
+**运行测试使用的 Rake 任务**
+
+你不用一个一个手动运行测试，Rails 提供了很多运行测试的命令。下表列出了新建 Rails 程序后，默认的 Rakefile 中包含的用来运行测试的命令。
+
+断言  | 作用  |
+--- | --- |
+rake test | 运行所有单元测试，功能测试和继承测试。还可以直接运行 rake，因为默认的 Rake 任务就是运行所有测试。  |
+rake test:controllers | 运行 test/controllers 文件夹中的所有控制器测试  |
+rake test:functionals | 运行文件夹 test/controllers、test/mailers 和 test/functional中的所有功能测试 |
+rake test:helpers | 运行 test/helpers 文件夹中的所有帮助方法测试 |
+rake test:integration | 运行 test/integration 文件夹中的所有集成测试 |
+rake test:mailers | 运行 test/mailers 文件夹中的所有邮件测试 |
+rake test:models  | 运行 test/models 文件夹中的所有模型测试  |
+rake test:units | 运行文件夹 test/models、test/helpers 和 test/unit 中的所有单元测试 |
+rake test:all | 不还原数据库，快速运行所有测试 |
+rake test:all:db  | 还原数据库，快速运行所有测试  |
+
+**测试前准备和测试后清理**
+
+如果想在每个测试运行之前以及运行之后运行一段代码，可以使用两个特殊的回调。我们以 Posts 控制器的功能测试为例，说明这两个回调的用法：
+
+``` ruby
+require 'test_helper'
+
+class PostsControllerTest < ActionController::TestCase
+
+  # called before every single test
+  def setup
+    @post = posts(:one)
+  end
+
+  # called after every single test
+  def teardown
+    # as we are re-initializing @post before every test
+    # setting it to nil here is not essential but I hope
+    # you understand how you can use the teardown method
+    @post = nil
+  end
+
+  test "should show post" do
+    get :show, id: @post.id
+    assert_response :success
+  end
+
+  test "should destroy post" do
+    assert_difference('Post.count', -1) do
+      delete :destroy, id: @post.id
+    end
+
+    assert_redirected_to posts_path
+  end
+
+end
+```
+
+在上述代码中，运行各测试之前都会执行 `setup` 方法，所以在每个测试中都可使用 `@post`。Rails 以 `ActiveSupport::Callbacks` 的方式实现 `setup` 和 `teardown`，因此这两个方法不仅可以作为方法使用，还可以这么用：
+
+* 代码块
+* 方法（如上例所示）
+* 用 Symbol 表示的方法名
+* Lambda
+
+下面重写前例，为 `setup` 指定一个用 `Symbol` 表示的方法名：
+
+``` ruby
+require 'test_helper'
+
+class PostsControllerTest < ActionController::TestCase
+
+  # called before every single test
+  setup :initialize_post
+
+  # called after every single test
+  def teardown
+    @post = nil
+  end
+
+  test "should show post" do
+    get :show, id: @post.id
+    assert_response :success
+  end
+
+  test "should update post" do
+    patch :update, id: @post.id, post: {}
+    assert_redirected_to post_path(assigns(:post))
+  end
+
+  test "should destroy post" do
+    assert_difference('Post.count', -1) do
+      delete :destroy, id: @post.id
+    end
+
+    assert_redirected_to posts_path
+  end
+
+  private
+
+    def initialize_post
+      @post = posts(:one)
+    end
+end
+```
+
+
+
+
 ##扩展阅读
 
 ***
 
-1. 验证 [http://guides.rubyonrails.org/active_record_validations.html](http://guides.rubyonrails.org/active_record_validations.html)
+1. 更高级的验证，自定义验证等 [http://guides.rubyonrails.org/active_record_validations.html](http://guides.rubyonrails.org/active_record_validations.html)
+
+2. rails测试，集成测试等 [http://guides.rubyonrails.org/testing.html](http://guides.rubyonrails.org/testing.html)

@@ -415,3 +415,33 @@ a:visited { color: #205caa; }
   font-weight: 0.8em;
   color: #999;
 }
+
+table {
+  margin: 0 0 1.5em;
+  border: 2px solid #CCC;
+  background: #FFF;
+  border-collapse: collapse;
+}
+
+table {
+  margin: 0 0 1.5em;
+  border: 2px solid #CCC;
+  background: #FFF;
+  border-collapse: collapse;
+}
+
+table th, table td {
+  padding: 0.25em 1em;
+  border: 1px solid #CCC;
+  border-collapse: collapse;
+}
+
+table th {
+  border-bottom: 2px solid #CCC;
+  background: #EEE;
+  font-weight: bold;
+  padding: 0.5em 1em;
+}
+
+
+
