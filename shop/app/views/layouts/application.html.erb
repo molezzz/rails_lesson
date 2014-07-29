@@ -7,8 +7,26 @@
   <%= csrf_meta_tags %>
 </head>
 <body>
+  <div id="banner">
+    <%= image_tag("logo.png") %>
+    <%= @page_title || "京西小店" %>
+  </div>
+  <div id="columns">
+    <div id="side">
+      <ul>
+        <li><a href="#">首页</a></li>
+        <li><a href="#">新闻</a></li>
+        <li><a href="#">客服</a></li>
+        <li><a href="#">联系我们</a></li>
+      </ul>
+    </div>
+    <div id="main">
 
-<%= yield %>
+      <%= yield %>
+
+    </div>
+  </div>
 
 </body>
 </html>
+

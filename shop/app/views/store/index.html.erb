@@ -1,2 +1,22 @@
-<h1>Store#index</h1>
-<p>Find me in app/views/store/index.html.erb</p>
+<div class="store">
+  <% if notice %>
+  <p id="notice"><%= notice %></p>
+  <% end %>
+
+  <h1>商品列表</h1>
+
+  <ul class="product-list">
+  <% @products.each do |product| %>
+   <li>
+    <%= image_tag(product.image_url) %>
+    <h3><%= product.title %></h3>
+    <div class="product-description">
+      <%= sanitize(product.description) %>
+    </div>
+    <div class="price-bar">
+      <span class="price"><%= product.price %></span>
+    </div>
+   </li>
+  <% end %>
+  </ul>
+</div>
