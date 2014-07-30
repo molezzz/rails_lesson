@@ -3,6 +3,8 @@
 // You can use Sass (SCSS) here: http://sass-lang.com/
 
 .store {
+  position: relative;
+
   h1 {
     margin: 0;
     padding-bottom: 0.5em;
@@ -16,6 +18,7 @@
     margin-top: 1em;
     border-bottom: 1px dotted #77d;
     min-height: 100px;
+    list-style: none;
 
 
     li {
@@ -26,7 +29,7 @@
       width: 100px;
       margin: 0.2em auto 0.2em;
       position: absolute;
-      left: 2em;
+      left: 1em;
     }
 
     h3 {

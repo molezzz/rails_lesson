@@ -14,7 +14,7 @@
       <%= sanitize(product.description) %>
     </div>
     <div class="price-bar">
-      <span class="price"><%= product.price %></span>
+      <span class="price"><%=number_to_currency(product.price)%></span>
     </div>
    </li>
   <% end %>

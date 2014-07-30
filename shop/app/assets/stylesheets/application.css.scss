@@ -15,12 +15,13 @@
  */
 
 #banner {
-  background: #9c9;
+  background: #FFF;
   padding: 10px;
   border-bottom: 2px solid;
-  font: small-caps 40px/40px "Times New Roman", serif;
-  color: #282;
+  font: small-caps 40px/60px "Times New Roman", serif;
+  color: #C91623;
   text-align: center;
+  height: 60px;
 
   img {
     float: left;
@@ -37,7 +38,7 @@
 }
 
 #columns {
-  background: #141;
+  background: #E4393C;
 
   #main {
     margin-left: 17em;
@@ -49,14 +50,14 @@
     float: left;
     padding: 1em 2em;
     width: 13em;
-    background: #141;
+    background: #E4393C;
 
     ul {
       padding: 0;
       li {
         list-style: none;
         a {
-          color: #bfb;
+          color: #FFF;
           font-size: small;
         }
       }

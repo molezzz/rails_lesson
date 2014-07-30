@@ -95,6 +95,8 @@ end
 // You can use Sass (SCSS) here: http://sass-lang.com/
 
 .store {
+  position: relative;
+
   h1 {
     margin: 0;
     padding-bottom: 0.5em;
@@ -108,7 +110,7 @@ end
     margin-top: 1em;
     border-bottom: 1px dotted #77d;
     min-height: 100px;
-
+    list-style: none;
 
     li {
       min-height: 10em;
@@ -118,7 +120,7 @@ end
       width: 100px;
       margin: 0.2em auto 0.2em;
       position: absolute;
-      left: 2em;
+      left: 1em;
     }
 
     h3 {
@@ -219,12 +221,13 @@ Rails中这个页面模板称之为“layout(布局)”，他们通常会被放�
  */
 
 #banner {
-  background: #9c9;
+  background: #FFF;
   padding: 10px;
   border-bottom: 2px solid;
-  font: small-caps 40px/40px "Times New Roman", serif;
-  color: #282;
+  font: small-caps 40px/60px "Times New Roman", serif;
+  color: #C91623;
   text-align: center;
+  height: 60px;
 
   img {
     float: left;
@@ -241,7 +244,7 @@ Rails中这个页面模板称之为“layout(布局)”，他们通常会被放�
 }
 
 #columns {
-  background: #141;
+  background: #E4393C;
 
   #main {
     margin-left: 17em;
@@ -253,14 +256,14 @@ Rails中这个页面模板称之为“layout(布局)”，他们通常会被放�
     float: left;
     padding: 1em 2em;
     width: 13em;
-    background: #141;
+    background: #E4393C;
 
     ul {
       padding: 0;
       li {
         list-style: none;
         a {
-          color: #bfb;
+          color: #FFF;
           font-size: small;
         }
       }
@@ -268,3 +271,267 @@ Rails中这个页面模板称之为“layout(布局)”，他们通常会被放�
   }
 }
 ```
+
+![s_32_24](/images/s_32_24.png)
+
+现在感觉有点意思了。不过好像还有些问题。我们期望价格能够显示小数点后两位，也就是显示到分，而且前面显示货币符号。Ruby提供了对数字进行格式化的方法`sprintf()`，使用这个方法，就可以实现对价格的格式化输出了。比如，我们可以这样写：
+
+``` html
+<span class="price"><%= sprintf("￥%0.02f",product.price)%></span>
+```
+这样写当然没错，但是将货币符号写到视图中，如果将来要国际化这个商城应用，比如都用美元标示，这就存在问题了。还好，Rails帮我们考虑了这个问题，它提供了`number_to_currency`的helper方法，我们将模板中的：
+
+``` html
+<span class="price"><%= product.price %></span>
+```
+
+修改成：
+
+``` html
+<span class="price"><%=number_to_currency(product.price)%></span>
+```
+
+刷新页面，价格发生了变化。不过好像跟我们期待的不一样。这个helper方法并没有输出“￥”而是输出了“$”：
+
+![s_32_25](/images/s_32_25.png)
+
+这是由于Rails默认的语言是英语。我们打开`config/application.rb`，会看到注释中有关于语言的设置说明：
+
+``` ruby
+# The default locale is :en and all translations from config/locales/*.rb,yml are auto loaded.
+# config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}').to_s]
+# config.i18n.default_locale = :de
+```
+
+我们把`config.i18n.default_locale = :de`这行注释打开，修改成中文：
+
+``` ruby
+config.i18n.default_locale = :'zh-CN'
+```
+然后[下载](https://github.com/svenfuchs/rails-i18n/blob/master/rails/locale/zh-CN.yml)一份中文语言文件，存储到`config/locales`下:
+
+``` yaml
+zh-CN:
+  date:
+    abbr_day_names:
+    - 日
+    - 一
+    - 二
+    - 三
+    - 四
+    - 五
+    - 六
+    abbr_month_names:
+    -
+    - 1月
+    - 2月
+    - 3月
+    - 4月
+    - 5月
+    - 6月
+    - 7月
+    - 8月
+    - 9月
+    - 10月
+    - 11月
+    - 12月
+    day_names:
+    - 星期日
+    - 星期一
+    - 星期二
+    - 星期三
+    - 星期四
+    - 星期五
+    - 星期六
+    formats:
+      default: ! '%Y-%m-%d'
+      long: ! '%Y年%b%d日'
+      short: ! '%b%d日'
+    month_names:
+    -
+    - 一月
+    - 二月
+    - 三月
+    - 四月
+    - 五月
+    - 六月
+    - 七月
+    - 八月
+    - 九月
+    - 十月
+    - 十一月
+    - 十二月
+    order:
+    - :year
+    - :month
+    - :day
+  datetime:
+    distance_in_words:
+      about_x_hours:
+        one: 大约一小时
+        other: 大约 %{count} 小时
+      about_x_months:
+        one: 大约一个月
+        other: 大约 %{count} 个月
+      about_x_years:
+        one: 大约一年
+        other: 大约 %{count} 年
+      almost_x_years:
+        one: 接近一年
+        other: 接近 %{count} 年
+      half_a_minute: 半分钟
+      less_than_x_minutes:
+        one: 不到一分钟
+        other: 不到 %{count} 分钟
+      less_than_x_seconds:
+        one: 不到一秒
+        other: 不到 %{count} 秒
+      over_x_years:
+        one: 一年多
+        other: ! '%{count} 年多'
+      x_days:
+        one: 一天
+        other: ! '%{count} 天'
+      x_minutes:
+        one: 一分钟
+        other: ! '%{count} 分钟'
+      x_months:
+        one: 一个月
+        other: ! '%{count} 个月'
+      x_seconds:
+        one: 一秒
+        other: ! '%{count} 秒'
+    prompts:
+      day: 日
+      hour: 时
+      minute: 分
+      month: 月
+      second: 秒
+      year: 年
+  errors:
+    format: ! '%{attribute}%{message}'
+    messages:
+      accepted: 必须是可被接受的
+      blank: 不能为空字符
+      present: 必须是空白
+      confirmation: 与确认值不匹配
+      empty: 不能留空
+      equal_to: 必须等于 %{count}
+      even: 必须为双数
+      exclusion: 是保留关键字
+      greater_than: 必须大于 %{count}
+      greater_than_or_equal_to: 必须大于或等于 %{count}
+      inclusion: 不包含于列表中
+      invalid: 是无效的
+      less_than: 必须小于 %{count}
+      less_than_or_equal_to: 必须小于或等于 %{count}
+      not_a_number: 不是数字
+      not_an_integer: 必须是整数
+      odd: 必须为单数
+      record_invalid: ! '验证失败: %{errors}'
+      restrict_dependent_destroy:
+        one: 由于 %{record} 需要此记录，所以无法移除记录
+        many: 由于 %{record} 需要此记录，所以无法移除记录
+      taken: 已经被使用
+      too_long:
+        one: 过长（最长为一个字符）
+        other: 过长（最长为 %{count} 个字符）
+      too_short:
+        one: 过短（最短为一个字符）
+        other: 过短（最短为 %{count} 个字符）
+      wrong_length:
+        one: 长度非法（必须为一个字符）
+        other: 长度非法（必须为 %{count} 个字符）
+      other_than: 长度非法（不可为 %{count} 个字符
+    template:
+      body: 如下字段出现错误：
+      header:
+        one: 有 1 个错误发生导致「%{model}」无法被保存。
+        other: 有 %{count} 个错误发生导致「%{model}」无法被保存。
+  helpers:
+    select:
+      prompt: 请选择
+    submit:
+      create: 新增%{model}
+      submit: 储存%{model}
+      update: 更新%{model}
+  number:
+    currency:
+      format:
+        delimiter: ! ','
+        format: ! '%u %n'
+        precision: 2
+        separator: .
+        significant: false
+        strip_insignificant_zeros: false
+        unit: ¥
+    format:
+      delimiter: ! ','
+      precision: 3
+      separator: .
+      significant: false
+      strip_insignificant_zeros: false
+    human:
+      decimal_units:
+        format: ! '%n %u'
+        units:
+          billion: 十亿
+          million: 百万
+          quadrillion: 千兆
+          thousand: 千
+          trillion: 兆
+          unit: ''
+      format:
+        delimiter: ''
+        precision: 1
+        significant: false
+        strip_insignificant_zeros: false
+      storage_units:
+        format: ! '%n %u'
+        units:
+          byte:
+            one: Byte
+            other: Bytes
+          gb: GB
+          kb: KB
+          mb: MB
+          tb: TB
+    percentage:
+      format:
+        delimiter: ''
+    precision:
+      format:
+        delimiter: ''
+  support:
+    array:
+      last_word_connector: ! ', 和 '
+      two_words_connector: ! ' 和 '
+      words_connector: ! ', '
+  time:
+    am: 上午
+    formats:
+      default: ! '%Y年%b%d日 %A %H:%M:%S %Z'
+      long: ! '%Y年%b%d日 %H:%M'
+      short: ! '%b%d日 %H:%M'
+    pm: 下午
+```
+
+重启服务器，刷新页面。OK，现在正常了。
+
+![s_32_26](/images/s_32_26.png)
+
+**为页面添加缓存**
+
+如果一切进行顺利地话，作为首页的这个页面会有大量的访问量。每当这个页面被访问的时候，我们都需要从数据库中取出产品，然后循环显示他们。这将给我们的服务器带来很大的负担。还好，这个页面不会被频繁地修改，因此，我们可以用Rails提供的缓存方法。
+
+由于开发环境Rails默认不开启缓存功能，所以我们要先打开缓存。编辑`config/environments/development.rb`文件，将`config.action_controller.perform_caching`设成`true`:
+
+``` ruby
+config.action_controller.perform_caching=true
+```
+
+为了让配置生效，我们需要重启服务器。
+
+
+
+
