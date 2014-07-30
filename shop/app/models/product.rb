@@ -6,4 +6,9 @@ class Product < ActiveRecord::Base
       with: %r{\.(gif|jpg|png)\Z}i,
       message:'图片扩展名必须是.gif、.jpg或者.png'
   }
+
+  def self.latest 
+    Product.order(:updated_at).last
+  end
+
 end

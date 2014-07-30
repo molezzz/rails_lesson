@@ -35,7 +35,7 @@ Rails.application.routes.draw do
 end
 ```
 
-在文件的上半部分，我们可以看到由Rails自动生成的store和products的路由配置。在“resources :products”下添加 “root 'store#index', as: 'store'”将网站的首页指向store控制器。“as: 'store'”表示让rails生成“ store_path”方法，以便在视图中调用。现在，在浏览器中直接输入“http://localhost:3000/”，你会发现，默认的首页已经变成我们指定的“store/index”了：
+在文件的上半部分，我们可以看到由Rails自动生成的store和products的路由配置。在“resources :products”下添加 “root 'store#index', as: 'store'”将网站的首页指向store控制器。“as: 'store'”表示让rails生成“ store_path”方法，以便在视图中调用。现在，在浏览器中直接输入“http://localhost:3000/”，会发现，默认的首页已经变成我们指定的“store/index”了：
 
 
 ![s_32_22](/images/s_32_22.png)
@@ -520,7 +520,7 @@ zh-CN:
 
 ![s_32_26](/images/s_32_26.png)
 
-**为页面添加缓存**
+#####**为页面添加缓存**
 
 如果一切进行顺利地话，作为首页的这个页面会有大量的访问量。每当这个页面被访问的时候，我们都需要从数据库中取出产品，然后循环显示他们。这将给我们的服务器带来很大的负担。还好，这个页面不会被频繁地修改，因此，我们可以用Rails提供的缓存方法。
 
@@ -532,6 +532,219 @@ config.action_controller.perform_caching=true
 
 为了让配置生效，我们需要重启服务器。
 
+现在来规划下如何缓存页面。首先，当有新产品被添加或者旧产品被更新以后，我们页面的缓存应该更新，除此之外，缓存应该一直有效。如何实现这一点呢？还好Rails模型提供了一个魔法字段`updated_at`，每当有产品被新建或更新时候，Rails会自动改写这个属性，并保存到库中，我们就用他来实现吧。打开`app/models/product.rb`添加：
+
+``` ruby
+def self.latest 
+  Product.order(:updated_at).last
+end
+```
+
+然后我们更新下模板，使用Rails提供的cache方法配合刚才自定义的方法实现缓存：
+
+``` ruby
+<div class="store">
+  <% if notice %>
+  <p id="notice"><%= notice %></p>
+  <% end %>
+
+  <h1>商品列表</h1>
+
+  <ul class="product-list">
+  <% cache ['store', Product.latest] do %>
+    <% @products.each do |product| %>
+     <li>
+      <%= image_tag(product.image_url) %>
+      <h3><%= product.title %></h3>
+      <div class="product-description">
+        <%= sanitize(product.description) %>
+      </div>
+      <div class="price-bar">
+        <span class="price"><%=number_to_currency(product.price)%></span>
+      </div>
+     </li>
+    <% end %>
+  <% end %>
+  </ul>
+</div>
+```
+
+我们只要这样写就可以了。Rails会帮我们搞定其他的操作，比如选择什么样的方式存储缓存，缓存的数据何时更新，核实过期等等。是不是很方便？尽管我们做了这么多工作，但很不幸现在看不到太惊艳的效果。不过，当我们商城上线，有大量用户访问的时候你就知道缓存的威力了。为了方便后面的开发，我们还是把缓存配置改回来吧：
+
+``` ruby
+config.action_controller.perform_caching = false
+```
 
 
+##本章知识点
+
+***
+
+####1. Rails的路由
+
+#####**Rails 路由的作用**
+
+Rails 路由能识别 URL，将其分发给控制器的动作进行处理，还能生成路径和 URL，无需直接在视图中硬编码字符串。
+
+**把 URL 和代码连接起来**
+
+Rails 程序收到如下请求时
+
+``` bash
+GET /patients/17
+```
+会查询路由，找到匹配的控制器动作。如果首个匹配的路由是：
+
+``` bash
+get '/patients/:id', to: 'patients#show'
+```
+那么这个请求就交给 patients 控制器的 show 动作处理，并把 { id: '17' } 传入 params。
+
+**生成路径和 URL**
+
+通过路由还可生成路径和 URL。如果把前面的路由修改成：
+
+``` bash
+get '/patients/:id', to: 'patients#show', as: 'patient'
+```
+
+在控制器中有如下代码：
+
+``` bash
+@patient = Patient.find(17)
+```
+
+在相应的视图中有如下代码：
+
+``` html
+<%= link_to 'Patient Record', patient_path(@patient) %>
+```
+
+那么路由就会生成路径 /patients/17。这么做代码易于维护、理解。注意，在路由帮助方法中无需指定 ID。
+
+#####**2. 资源路径（Resources）**
+
+使用资源路径可以快速声明资源式控制器所有的常规路由，无需分别为 index、show、new、edit、create、update 和 destroy 动作分别声明路由，只需一行代码就能搞定。
+
+**网络中的资源**
+
+浏览器向 Rails 程序请求页面时会使用特定的 HTTP 方法，例如 GET、POST、PATCH、PUT 和 DELETE。每个方法对应对资源的一种操作。资源路由会把一系列相关请求映射到单个路由器的不同动作上。
+
+如果 Rails 程序收到如下请求：
+
+``` bash
+DELETE /photos/17
+```
+
+会查询路由将其映射到一个控制器的路由上。如果首个匹配的路由是：
+
+``` ruby
+resources :photos
+```
+
+那么这个请求就交给 photos 控制器的 destroy 方法处理，并把 { id: '17' } 传入 params。
+
+**CRUD，HTTP 方法和动作**
+
+在 Rails 中，资源式路由把 HTTP 方法和 URL 映射到控制器的动作上。而且根据约定，还映射到数据库的 CRUD 操作上。路由文件中如下的单行声明：
+
+``` ruby
+resources :photos
+```
+
+会创建七个不同的路由，全部映射到 Photos 控制器上：
+
+HTTP 方法 | 路径 | 控制器#动作 | 作用
+--- | --- | --- | ---
+GET | /photos | photos#index | 显示所有图片
+GET | /photos/new | photos#new | 显示新建图片的表单
+POST | /photos | photos#create | 新建图片
+GET | /photos/:id | photos#show | 显示指定的图片
+GET | /photos/:id/edit | photos#edit | 显示编辑图片的表单
+PATCH/PUT | /photos/:id | photos#update | 更新指定的图片
+DELETE | /photos/:id | photos#destroy | 删除指定的图片
+
+> _注意！_
+
+> 路由使用 HTTP 方法和 URL 匹配请求，把四个 URL 映射到七个不同的动作上。
+
+> NOTE: 路由按照声明的顺序匹配哦，如果在 get 'photos/poll' 之前声明了 resources :photos，那么 show 动作的路由由 resources 这行解析。如果想使用 get 这行，就要将其移到 resources 之前。
+
+**路径和 URL 帮助方法**
+
+声明资源式路由后，会自动创建一些帮助方法。以 resources :photos 为例：
+
+* photos_path 返回 /photos
+* new_photo_path 返回 /photos/new
+* edit_photo_path(:id) 返回 /photos/:id/edit，例如 edit_photo_path(10) 返回 /photos/10/edit
+* photo_path(:id) 返回 /photos/:id，例如 photo_path(10) 返回 /photos/10
+
+这些帮助方法都有对应的 _url 形式，例如 photos_url，返回主机、端口加路径。
+
+**一次声明多个资源路由**
+
+如果需要为多个资源声明路由，可以节省一点时间，调用一次 resources 方法完成：
+
+``` ruby
+resources :photos, :books, :videos
+```
+
+这种方式等价于：
+
+``` ruby
+resources :photos
+resources :books
+resources :videos
+```
+
+**单数资源**
+
+有时希望不用 ID 就能查看资源，例如，/profile 一直显示当前登入用户的个人信息。针对这种需求，可以使用单数资源，把 /profile（不是 /profile/:id）映射到 show 动作：
+
+``` ruby
+get 'profile', to: 'users#show'
+```
+
+如果 get 方法的 to 选项是字符串，要使用 controller#action 形式；如果是 Symbol，就可以直接指定动作：
+
+``` ruby
+get 'profile', to: :show
+```
+
+下面这个资源式路由：
+
+``` ruby
+resource :geocoder
+```
+
+会生成六个路由，全部映射到 Geocoders 控制器
+
+HTTP 方法 | 路径 | 控制器#动作 | 作用
+--- | --- | --- | ---
+GET | /geocoder/new | geocoders#new | 显示新建 geocoder 的表单
+POST | /geocoder | geocoders#create | 新建 geocoder
+GET | /geocoder | geocoders#show | 显示唯一的 geocoder 资源
+GET | /geocoder/edit | geocoders#edit | 显示编辑 geocoder 的表单
+PATCH/PUT | /geocoder | geocoders#update | 更新唯一的 geocoder 资源
+DELETE | /geocoder | geocoders#destroy |ß 删除 geocoder 资源
+
+单数资源式路由生成以下帮助方法：
+
+* new_geocoder_path 返回 /geocoder/new
+* edit_geocoder_path 返回 /geocoder/edit
+* geocoder_path 返回 /geocoder
+
+和复数资源一样，上面各帮助方法都有对应的 _url 形式，返回主机、端口加路径。
+
+有个一直存在的问题导致 form_for 无法自动处理单数资源。为了解决这个问题，可以直接指定表单的 URL，例如：
+
+``` ruby
+form_for @geocoder, url: geocoder_path do |f|
+```
+
+##扩展阅读
+
+***
+
+1. 控制器命名空间、scope路由 [http://guides.rubyonrails.org/routing.html](http://guides.rubyonrails.org/routing.html)
 

@@ -6,17 +6,19 @@
   <h1>商品列表</h1>
 
   <ul class="product-list">
-  <% @products.each do |product| %>
-   <li>
-    <%= image_tag(product.image_url) %>
-    <h3><%= product.title %></h3>
-    <div class="product-description">
-      <%= sanitize(product.description) %>
-    </div>
-    <div class="price-bar">
-      <span class="price"><%=number_to_currency(product.price)%></span>
-    </div>
-   </li>
+  <% cache ['store', Product.latest] do %>
+    <% @products.each do |product| %>
+     <li>
+      <%= image_tag(product.image_url) %>
+      <h3><%= product.title %></h3>
+      <div class="product-description">
+        <%= sanitize(product.description) %>
+      </div>
+      <div class="price-bar">
+        <span class="price"><%=number_to_currency(product.price)%></span>
+      </div>
+     </li>
+    <% end %>
   <% end %>
   </ul>
 </div>
