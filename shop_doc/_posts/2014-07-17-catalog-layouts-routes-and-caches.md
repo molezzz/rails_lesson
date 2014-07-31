@@ -35,7 +35,7 @@ Rails.application.routes.draw do
 end
 ```
 
-在文件的上半部分，我们可以看到由Rails自动生成的store和products的路由配置。在“resources :products”下添加 “root 'store#index', as: 'store'”将网站的首页指向store控制器。“as: 'store'”表示让rails生成“ store_path”方法，以便在视图中调用。现在，在浏览器中直接输入“http://localhost:3000/”，会发现，默认的首页已经变成我们指定的“store/index”了：
+在文件的上半部分，我们可以看到由Rails自动生成的store和products的路由配置。在“resources :products”下添加 “root 'store#index', as: 'store'”将网站的首页指向store控制器。“as: 'store'”表示让rails生成“ store_path”方法，以便在视图中调用。现在，在浏览器中直接输入“ http://localhost:3000/ ”，会发现，默认的首页已经变成我们指定的“store/index”了：
 
 
 ![s_32_22](/images/s_32_22.png)
@@ -535,7 +535,7 @@ config.action_controller.perform_caching=true
 现在来规划下如何缓存页面。首先，当有新产品被添加或者旧产品被更新以后，我们页面的缓存应该更新，除此之外，缓存应该一直有效。如何实现这一点呢？还好Rails模型提供了一个魔法字段`updated_at`，每当有产品被新建或更新时候，Rails会自动改写这个属性，并保存到库中，我们就用他来实现吧。打开`app/models/product.rb`添加：
 
 ``` ruby
-def self.latest 
+def self.latest
   Product.order(:updated_at).last
 end
 ```
@@ -742,9 +742,441 @@ DELETE | /geocoder | geocoders#destroy |ß 删除 geocoder 资源
 form_for @geocoder, url: geocoder_path do |f|
 ```
 
+**嵌套资源**
+
+开发程序时经常会遇到一个资源是其他资源的子资源这种情况。假设程序中有如下的模型：
+
+```ruby
+class Magazine < ActiveRecord::Base
+  has_many :ads
+end
+
+class Ad < ActiveRecord::Base
+  belongs_to :magazine
+end
+```
+
+在路由中可以使用“嵌套路由”反应这种关系。针对这个例子，可以声明如下路由：
+
+``` ruby
+resources :magazines do
+  resources :ads
+end
+```
+
+除了创建 MagazinesController 的路由之外，上述声明还会创建 AdsController 的路由。广告的 URL 要用到杂志资源：
+
+HTTP 方法 | 路径 | 控制器#动作 | 作用
+--- | --- | --- | ---
+GET | /magazines/:magazine_id/ads | ads#index | 显示指定杂志的所有广告
+GET | /magazines/:magazine_id/ads/new | ads#new | 显示新建广告的表单，该告属于指定的杂志
+POST | /magazines/:magazine_id/ads | ads#create | 创建属于指定杂志的广告
+GET | /magazines/:magazine_id/ads/:id | ads#show | 显示属于指定杂志的指定广告
+GET | /magazines/:magazine_id/ads/:id/edit | ads#edit |  显示编辑广告的表单，该广告属于指定的杂志
+PATCH/PUT | /magazines/:magazine_id/ads/:id | ads#update | 更新属于指定杂志的指定广告
+DELETE | /magazines/:magazine_id/ads/:id | ads#destroy | 删除属于指定杂志的指定广告
+
+上述路由还会生成 magazine\_ads\_url 和 edit\_magazine\_ad\_path 等路由帮助方法。这些帮助方法的第一个参数是 Magazine 实例，例如 magazine\_ads\_url(@magazine)。
+
+**由对象创建路径和 URL**
+
+除了使用路由帮助方法之外，Rails 还能从参数数组中创建路径和 URL。例如，假设有如下路由：
+
+``` ruby
+resources :magazines do
+  resources :ads
+end
+```
+
+使用 `magazine_ad_path` 时，可以不传入数字 ID，传入 Magazine 和 Ad 实例即可：
+
+``` html
+<%= link_to 'Ad details', magazine_ad_path(@magazine, @ad) %>
+```
+
+而且还可使用 `url_for` 方法，指定一组对象，Rails 会自动决定使用哪个路由：
+
+``` html
+<%= link_to 'Ad details', url_for([@magazine, @ad]) %>
+```
+
+此时，Rails 知道 @magazine 是 Magazine 的实例，@ad 是 Ad 的实例，所以会调用 `magazine_ad_path` 帮助方法。使用 `link_to` 等方法时，无需使用完整的 `url_for` 方法，直接指定对象即可：
+
+```html
+<%= link_to 'Ad details', [@magazine, @ad] %>
+```
+
+如果想链接到一本杂志，可以这么做：
+
+``` html
+<%= link_to 'Magazine details', @magazine %>
+```
+
+要想链接到其他动作，把数组的第一个元素设为所需动作名即可：
+
+``` html
+<%= link_to 'Edit Ad', [:edit, @magazine, @ad] %>
+```
+
+在这种用法中，会把模型实例转换成对应的 URL，这是资源式路由带来的主要好处之一。
+
+**添加更多的 REST 架构动作**
+
+可用的路由并不局限于 REST 路由默认创建的那七个，还可以添加额外的集合路由或成员路由。
+
+**添加成员路由**
+
+要添加成员路由，在 resource 代码块中使用 member 块即可：
+
+``` ruby
+resources :photos do
+  member do
+    get 'preview'
+  end
+end
+```
+
+这段路由能识别 `/photos/1/preview`是个 GET 请求，映射到 `PhotosController` 的 `preview` 动作上，资源的 ID 传入 params[:id]。同时还生成了 `preview_photo_url` 和 `preview_photo_path` 两个帮助方法。
+
+在 member 代码块中，每个路由都要指定使用的 HTTP 方法。可以使用 get，patch，put，post 或 delete。如果成员路由不多，可以不使用代码块形式，直接在路由上使用 :on 选项：
+
+``` ruby
+resources :photos do
+  get 'preview', on: :member
+end
+```
+
+也可以不使用 :on 选项，得到的成员路由是相同的，但资源 ID 存储在 params[:photo_id] 而不是 params[:id] 中。
+
+**添加集合路由**
+
+添加集合路由的方式如下：
+
+``` ruby
+resources :photos do
+  collection do
+    get 'search'
+  end
+end
+```
+
+这段路由能识别 `/photos/search` 是个 GET 请求，映射到 `PhotosController` 的 `search` 动作上。同时还会生成 `search_photos_url` 和 `search_photos_path`两个帮助方法。
+
+和成员路由一样，也可使用 :on 选项：
+
+``` ruby
+resources :photos do
+  get 'search', on: :collection
+end
+```
+
+**添加额外新建动作的路由**
+
+要添加额外的新建动作，可以使用 :on 选项：
+
+``` ruby
+resources :comments do
+  get 'preview', on: :new
+end
+```
+
+这段代码能识别  `/comments/new/preview` 是个 GET 请求，映射到 `CommentsController` 的 `preview` 动作上。同时还会生成 `preview_new_comment_url` 和 `preview_new_comment_path` 两个路由帮助方法。
+
+> 注意:
+
+> 如果在资源式路由中添加了过多额外动作，这时就要停下来问自己，是不是要新建一个资源
+
+**定制资源式路由**
+
+虽然 resources :posts 默认生成的路由和帮助方法都满足大多数需求，但有时还是想做些定制。Rails 允许对资源式帮助方法做几乎任何形式的定制。
+
+**指定使用的控制器**
+
+:controller 选项用来指定资源使用的控制器。例如：
+
+``` ruby
+resources :photos, controller: 'images'
+```
+
+能识别以 /photos 开头的请求，但交给 Images 控制器处理：
+
+HTTP 方法 | 路径 | 控制器#动作 | 作用
+--- | --- | --- | ---
+GET | /photos | images#index | photos_path
+GET | /photos/new | images#new | new_photo_path
+POST | /photos | images#create | photos_path
+GET | /photos/:id | images#show | photo_path(:id)
+GET | /photos/:id/edit | images#edit | edit_photo_path(:id)
+PATCH/PUT | /photos/:id | images#update | photo_path(:id)
+DELETE | /photos/:id | images#destroy | photo_path(:id)
+
+#####**非资源式路由**
+
+除了资源路由之外，Rails 还提供了强大功能，把任意 URL 映射到动作上。此时，不会得到资源式路由自动生成的一系列路由，而是分别声明各个路由。
+
+虽然一般情况下要使用资源式路由，但也有一些情况使用简单的路由更合适。如果不合适，也不用非得使用资源实现程序的每种功能。
+
+简单的路由特别适合把传统的 URL 映射到 Rails 动作上。
+
+**绑定参数**
+
+声明常规路由时，可以提供一系列 Symbol，做为 HTTP 请求的一部分，传入 Rails 程序。其中两个 Symbol 有特殊作用：:controller 映射程序的控制器名，:action 映射控制器中的动作名。例如，有下面的路由：
+
+``` ruby
+get ':controller(/:action(/:id))'
+```
+
+如果 `/photos/show/1` 由这个路由处理（没匹配路由文件中其他路由声明），会映射到 `PhotosController` 的 `show` 动作上，最后一个参数 "1" 可通过 `params[:id]` 获取。上述路由还能处理 `/photos` 请求，映射到 `PhotosController#index`，因为 `:action` 和 `:id `放在括号中，是可选参数。
+
+**动态路径片段**
+
+在常规路由中可以使用任意数量的动态片段。:controller 和 :action 之外的参数都会存入 params 传给动作。如果有下面的路由：
+
+``` ruby
+get ':controller/:action/:id/:user_id'
+```
+
+`/photos/show/1/2` 请求会映射到 `PhotosController` 的 `show` 动作。params[:id] 的值是 "1"，params[:user_id] 的值是 "2"。
+
+**静态路径片段**
+
+声明路由时可以指定静态路径片段，片段前不加冒号即可：
+
+``` ruby
+get ':controller/:action/:id/with_user/:user_id'
+```
+
+这个路由能响应 `/photos/show/1/with_user/2`这种路径。此时，params 的值为 { controller: 'photos', action: 'show', id: '1', user_id: '2' }。
+
+**查询字符串**
+
+params 中还包含查询字符串中的所有参数。例如，有下面的路由：
+
+``` ruby
+get ':controller/:action/:id'
+```
+
+`/photos/show/1?user_id=2` 请求会映射到 Photos 控制器的 show 动作上。params 的值为 { controller: 'photos', action: 'show', id: '1', user_id: '2' }。
+
+**定义默认值**
+
+在路由中无需特别使用 `:controller` 和 `:action`，可以指定默认值：
+
+``` ruby
+get 'photos/:id', to: 'photos#show'
+```
+
+这样声明路由后，Rails 会把 `/photos/12` 映射到 `PhotosController` 的 `show` 动作上。
+
+路由中的其他部分也使用 `:defaults `选项设置默认值。甚至可以为没有指定的动态路径片段设定默认值。例如：
+
+``` ruby
+get 'photos/:id', to: 'photos#show', defaults: { format: 'jpg' }
+```
+
+Rails 会把 `photos/12` 请求映射到 `PhotosController` 的 `show` 动作上，把 params[:format] 的值设为 "jpg"。
+
+**命名路由**
+
+使用 `:as` 选项可以为路由起个名字：
+
+``` ruby
+get 'exit', to: 'sessions#destroy', as: :logout
+```
+
+这段路由会生成 `logout_path` 和 `logout_url` 这两个具名路由帮助方法。调用 logout_path 方法会返回 /exit。
+
+使用 `:as` 选项还能重设资源的路径方法，例如：
+
+``` ruby
+get ':username', to: 'users#show', as: :user
+```
+
+这段路由会定义一个名为 `user_path` 的方法，可在控制器、帮助方法和视图中使用。在 `UsersController` 的 `show` 动作中，params[:username] 的值即用户的用户名。如果不想使用 `:username` 作为参数名，可在路由声明中修改。
+
+**HTTP 方法约束**
+
+一般情况下，应该使用 get、post、put、patch 和 delete 方法限制路由可使用的 HTTP 方法。如果使用 match 方法，可以通过 `:via` 选项一次指定多个 HTTP 方法：
+
+``` ruby
+match 'photos', to: 'photos#show', via: [:get, :post]
+```
+
+如果某个路由想使用所有 HTTP 方法，可以使用 `via: :all`：
+
+``` ruby
+match 'photos', to: 'photos#show', via: :all
+```
+> 注意！
+
+> 同个路由即处理 GET 请求又处理 POST 请求有安全隐患。一般情况下，除非有特殊原因，切记不要允许在一个动作上使用所有 HTTP 方法。
+
+**使用 root**
+
+使用 root 方法可以指定怎么处理 '/' 请求：
+
+``` ruby
+root to: 'pages#main'
+root 'pages#main' # shortcut for the above
+```
+
+root 路由应该放在文件的顶部，因为这是最常用的路由，应该先匹配。
+
+> 注意！ root 路由只处理映射到动作上的 GET 请求。
+
+####2. Rails缓存基础
+
+本节介绍三种缓存技术：页面，动作和片段。Rails 默认支持片段缓存。如果想使用页面缓存和动作缓存，要在 Gemfile 中加入 `actionpack-page_caching 和 actionpack-action_caching`。
+
+在开发环境中若想使用缓存，要把 `config.action_controller.perform_caching` 选项设为 `true`。这个选项一般都在各环境的设置文件（config/environments/*.rb）中设置，在开发环境和测试环境默认是禁用的，在生产环境中默认是开启的。
+
+``` ruby
+config.action_controller.perform_caching = true
+```
+**页面缓存**
+
+页面缓存机制允许网页服务器（Apache 或 Nginx 等）直接处理请求，不经 Rails 处理。这么做显然速度超快，但并不适用于所有情况（例如需要身份认证的页面）。服务器直接从文件系统上读取文件，所以缓存过期是一个很棘手的问题。
+
+> 注意！
+
+> Rails 4 删除了对页面缓存的支持，如想使用就得安装 actionpack-page_caching gem。
+
+**动作缓存**
+
+如果动作上有前置过滤器就不能使用页面缓存，例如需要身份认证的页面，这时需要使用动作缓存。动作缓存和页面缓存的工作方式差不多，但请求还是会经由 Rails 处理，所以在读取缓存之前会执行前置过滤器。使用动作缓存可以执行身份认证等限制，然后再从缓存中取出结果返回客户端。
+
+> 注意！
+
+> Rails 4 删除了对动作缓存的支持，如想使用就得安装 actionpack-action_caching gem。
+
+**片段缓存**
+
+如果能缓存整个页面或动作的内容，再读取给客户端，这个世界就完美了。但是，动态网页程序的页面一般都由很多部分组成，使用的缓存机制也不尽相同。在动态生成的页面中，不同的内容要使用不同的缓存方式和过期日期。为此，Rails 提供了一种缓存机制叫做“片段缓存”。
+
+片段缓存把视图逻辑的一部分打包放在 cache 块中，后续请求都会从缓存中读取这部分内容。
+
+例如，如果想实时显示网站的订单，而且不想缓存这部分内容，但想缓存显示所有可选商品的部分，就可以使用下面这段代码：
+
+``` html
+<% Order.find_recent.each do |o| %>
+  <%= o.buyer.name %> bought <%= o.product.name %>
+<% end %>
+
+<% cache do %>
+  All available products:
+  <% Product.all.each do |p| %>
+    <%= link_to p.name, product_url(p) %>
+  <% end %>
+<% end %>
+```
+
+上述代码中的 cache 块会绑定到调用它的动作上，输出到动作缓存的所在位置。因此，如果要在动作中使用多个片段缓存，就要使用 action_suffix 为 cache 块指定前缀：
+
+``` html
+<% cache(action: 'recent', action_suffix: 'all_products') do %>
+  All available products:
+```
+
+expire_fragment 方法可以把缓存设为过期，例如：
+
+``` html
+expire_fragment(controller: 'products', action: 'recent', action_suffix: 'all_products')
+```
+
+如果不想把缓存绑定到调用它的动作上，调用 cahce 方法时可以使用全局片段名：
+
+``` ruby
+<% cache('all_available_products') do %>
+  All available products:
+<% end %>
+```
+
+在 ProductsController 的所有动作中都可以使用片段名调用这个片段缓存，而且过期的设置方式不变：
+
+``` ruby
+expire_fragment('all_available_products')
+```
+
+如果不想手动设置片段缓存过期，而想每次更新商品后自动过期，可以定义一个帮助方法：
+
+``` ruby
+module ProductsHelper
+  def cache_key_for_products
+    count          = Product.count
+    max_updated_at = Product.maximum(:updated_at).try(:utc).try(:to_s, :number)
+    "products/all-#{count}-#{max_updated_at}"
+  end
+end
+```
+
+这个方法生成一个缓存键，用于所有商品的缓存。在视图中可以这么做：
+
+``` ruby
+<% cache(cache_key_for_products) do %>
+  All available products:
+<% end %>
+```
+
+如果想在满足某个条件时缓存片段，可以使用 cache_if 或 cache_unless 方法：
+
+``` ruby
+<% cache_if (condition, cache_key_for_products) do %>
+  All available products:
+<% end %>
+```
+
+缓存的键名还可使用 Active Record 模型：
+
+``` ruby
+<% Product.all.each do |p| %>
+  <% cache(p) do %>
+    <%= link_to p.name, product_url(p) %>
+  <% end %>
+<% end %>
+```
+
+Rails 会在模型上调用 `cache_key` 方法，返回一个字符串，例如 `products/23-20130109142513`。键名中包含模型名，ID 以及 `updated_at`字段的时间戳。所以更新商品后会自动生成一个新片段缓存，因为键名变了。
+
+上述两种缓存机制还可以结合在一起使用，这叫做“俄罗斯套娃缓存”（Russian Doll Caching）：
+
+``` ruby
+<% cache(cache_key_for_products) do %>
+  All available products:
+  <% Product.all.each do |p| %>
+    <% cache(p) do %>
+      <%= link_to p.name, product_url(p) %>
+    <% end %>
+  <% end %>
+<% end %>
+```
+
+之所以叫“俄罗斯套娃缓存”，是因为嵌套了多个片段缓存。这种缓存的优点是，更新单个商品后，重新生成外层片段缓存时可以继续使用内层片段缓存。
+
+**底层缓存**
+
+有时不想缓存视图片段，只想缓存特定的值或者查询结果。Rails 中的缓存机制可以存储各种信息。
+
+实现底层缓存最有效地方式是使用 `Rails.cache.fetch` 方法。这个方法既可以从缓存中读取数据，也可以把数据写入缓存。传入单个参数时，读取指定键对应的值。传入代码块时，会把代码块的计算结果存入缓存的指定键中，然后返回计算结果。
+
+以下面的代码为例。程序中有个 `Product` 模型，其中定义了一个实例方法，用来查询竞争对手网站上的商品价格。这个方法的返回结果最好使用底层缓存：
+
+``` ruby
+class Product < ActiveRecord::Base
+  def competing_price
+    Rails.cache.fetch("#{cache_key}/competing_price", expires_in: 12.hours) do
+      Competitor::API.find_price(id)
+    end
+  end
+end
+```
+> 注意，在这个例子中使用了 cache_key 方法，所以得到的缓存键名是这种形式：products/233-20140225082222765838000/competing_price。cache_key 方法根据模型的 id 和 updated_at 属性生成键名。这是最常见的做法，因为商品更新后，缓存就失效了。一般情况下，使用底层缓存保存实例的相关信息时，都要生成缓存键。
+
+
 ##扩展阅读
 
 ***
 
-1. 控制器命名空间、scope路由 [http://guides.rubyonrails.org/routing.html](http://guides.rubyonrails.org/routing.html)
+1. 控制器命名空间、scope路由等 [http://guides.rubyonrails.org/routing.html](http://guides.rubyonrails.org/routing.html)
+
+2. 缓存 [http://guides.rubyonrails.org/caching_with_rails.html](http://guides.rubyonrails.org/caching_with_rails.html)
 
