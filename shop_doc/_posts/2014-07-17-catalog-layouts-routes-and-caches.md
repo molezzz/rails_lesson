@@ -1171,6 +1171,87 @@ end
 ```
 > 注意，在这个例子中使用了 cache_key 方法，所以得到的缓存键名是这种形式：products/233-20140225082222765838000/competing_price。cache_key 方法根据模型的 id 和 updated_at 属性生成键名。这是最常见的做法，因为商品更新后，缓存就失效了。一般情况下，使用底层缓存保存实例的相关信息时，都要生成缓存键。
 
+#####**3. Rails是如何处理 i18n(Internationalization) 的**
+
+国际化是个很复杂的问题。自然语言千差万别（例如复数变形规则），很难提供一种工具解决所有问题。因此，Rails I18n API 只关注：
+
+* 默认支持和英语类似的语言；
+* 让支持其他语言变得简单；
+
+Rails 框架中的每个静态字符串（例如，Active Record 数据验证消息，日期和时间的格式）都支持国际化，因此本地化时只要重写默认值即可。
+
+**公开 API**
+I18n API 最重要的方法是：
+
+```ruby
+translate # Lookup text translations
+localize  # Localize Date and Time objects to local formats
+```
+
+这两个方法都有别名，分别为 #t 和 #l。因此可以这么用：
+
+```ruby
+I18n.t 'store.title'
+I18n.l Time.now
+```
+
+I18n API 同时还提供了针对下述属性的读取和设值方法：
+
+``` ruby
+load_path         # Announce your custom translation files
+locale            # Get and set the current locale
+default_locale    # Get and set the default locale
+exception_handler # Use a different exception_handler
+backend           # Use a different backend```
+```
+
+
+**配置 I18n 模块**
+
+按照“约定优于配置”原则，Rails 会为程序提供一些合理的默认值。如果想使用其他设置，可以很容易的改写默认值。
+
+Rails 会自动把 config/locales 文件夹中所有 .rb 和 .yml 文件加入译文加载路径。
+
+默认提供的 en.yml 文件中包含一些简单的翻译文本：
+
+``` yaml
+en:
+  hello: "Hello world"
+```
+
+上面这段代码的意思是，在 `:en` 语言中，hello 键映射到字符串 "Hello world" 上。Rails 中的每个字符串的国际化都使用这种方式，比如说 Active Model 数据验证消息以及日期和时间格式。在默认的后台中，可以使用 YAML 或标准的 Ruby Hash 存储翻译数据。
+
+I18n 库使用的默认语言是英语，所以如果没设为其他语言，就会用 `:en` 查找翻译数据。
+
+> 经过讨论之后，i18n 库决定为语言名称使用一种务实的方案，只说明所用语言（例如，:en，:pl），不区分地区（例如，:en-US，:en-GB）。地区经常用来区分同一语言在不同地区的分支或者方言。很多国际化程序只使用语言名称，例如 :cs、:th 和 :es（分别为捷克语，泰语和西班牙语）。不过，同一语种在不同地区可能有重要差别。例如，在 :en-US 中，货币符号是“$”，但在 :en-GB 中是“£”。在 Rails 中使用区分地区的语言设置也是可行的，只要在 :en-GB 中使用完整的“English - United Kingdom”即可。很多 Rails I18n 插件，例如 Globalize3，都可以实现。
+
+译文加载路径（I18n.load_path）是一个 Ruby 数组，由译文文件的路径组成，Rails 程序会自动加载这些文件。你可以使用任何一个文件夹，任何一种文件命名方式。
+
+首次加载查找译文时，后台会惰性加载这些译文。这么做即使已经声明过，也可以更换所用后台。
+
+application.rb 文件中的默认内容有介绍如何从其他文件夹中添加本地数据，以及如何设置默认使用的语言。去掉相关代码行前面的注释，修改即可。
+
+``` ruby
+# The default locale is :en and all translations from config/locales/*.rb,yml are auto loaded.
+# config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}').to_s]
+# config.i18n.default_locale = :de
+```
+
+**更改 I18n 库的设置**
+
+如果基于某些原因不想使用 application.rb 文件中的设置，我们来介绍一下手动设置的方法。
+
+告知 I18n 库在哪里寻找译文文件，可以在程序的任何地方指定加载路径。但要保证这个设置要在加载译文之前执行。我们可能还要修改默认使用的语言。要完成这两个设置，最简单的方法是把下面的代码放到一个初始化脚本中：
+
+``` ruby
+# in config/initializers/locale.rb
+
+# tell the I18n library where to find your translations
+I18n.load_path += Dir[Rails.root.join('lib', 'locale', '*.{rb,yml}')]
+
+# set default locale to something other than :en
+I18n.default_locale = :pt
+```
 
 ##扩展阅读
 
