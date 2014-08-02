@@ -1,4 +1,8 @@
 class Product < ActiveRecord::Base
+  has_many :line_items
+
+  before_destroy :ensure_not_referenced_by_any_line_item
+
   validates :title, :description, :image_url, presence: true
   validates :price, numericality: { greater_than_or_equal_to: 0.01 }
   validates :title, uniqueness: true
@@ -7,8 +11,19 @@ class Product < ActiveRecord::Base
       message:'图片扩展名必须是.gif、.jpg或者.png'
   }
 
-  def self.latest 
+  def self.latest
     Product.order(:updated_at).last
   end
 
+  private
+
+  # 确保商品删除前没被任何购物车引用
+  def ensure_not_referenced_by_any_line_item
+    if line_items.empty?
+      return true
+    else
+      errors.add(:base, 'Line Items present')
+      return false
+    end
+  end
 end
