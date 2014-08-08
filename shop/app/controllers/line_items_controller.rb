@@ -1,4 +1,8 @@
 class LineItemsController < ApplicationController
+  # 加入购物车模块
+  include CurrentCart
+  # 使用钩子，在create前载入购物车
+  before_action :set_cart, only: [:create]
   before_action :set_line_item, only: [:show, :edit, :update, :destroy]
 
   # GET /line_items
@@ -24,11 +28,15 @@ class LineItemsController < ApplicationController
   # POST /line_items
   # POST /line_items.json
   def create
-    @line_item = LineItem.new(line_item_params)
+    # 查找相应商品
+    product = Product.find(params[:product_id])
+    # 存入购物车
+    @line_item = @cart.line_items.build(product: product)
 
     respond_to do |format|
       if @line_item.save
-        format.html { redirect_to @line_item, notice: 'Line item was successfully created.' }
+        # 跳转到购物车
+        format.html { redirect_to @line_item.cart, notice: 'Line item was successfully created.' }
         format.json { render :show, status: :created, location: @line_item }
       else
         format.html { render :new }
