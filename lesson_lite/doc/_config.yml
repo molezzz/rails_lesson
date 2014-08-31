@@ -1,0 +1,13 @@
+# Site settings
+title: Rails简单商城
+email: molezzz@gmail.com
+description: ""
+baseurl: ""
+url: "http://www.junxiwang.com/"
+twitter_username: 
+github_username:  
+
+markdown: redcarpet
+redcarpet:
+  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
+permalink: pretty
